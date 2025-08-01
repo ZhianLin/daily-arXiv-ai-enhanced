@@ -1,0 +1,46 @@
+name: Weekly Release
+
+on:
+  schedule:
+    # 每周一 11:00 UTC（注意：GitHub Actions 使用 UTC 时间）
+    - cron: '0 3 * * 1'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 需要此权限才能创建发布
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get current date
+        id: date
+        run: |
+          echo "release_date=$(date +'%Y.%m.%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Create Release Archive
+        run: |
+          # 打包整个仓库为 zip（排除 .git）
+          zip -r source-code.zip . -x '*.git*'
+          if [ $? -ne 0 ]; then
+            echo "Failed to create zip archive"
+            exit 1
+          fi
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1  
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.date.outputs.release_date }}
+          name: ${{ steps.date.outputs.release_date }}
+          body: |
+            Weekly automated release for ${{ steps.date.outputs.release_date }}.
+          draft: false
+          prerelease: false
+          files: |
+            source-code.zip
+          asset_name: source-code-${{ steps.date.outputs.release_date }}.zip
